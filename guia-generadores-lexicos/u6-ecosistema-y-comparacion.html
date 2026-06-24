@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>U6 · Ecosistema y comparación — Generadores Léxicos</title>
+<link rel="stylesheet" href="estilo.css">
+</head>
+<body>
+<nav class="nav">
+  <a class="home" href="index.html">Generadores Léxicos → Flex</a>
+  <a href="u1-del-texto-a-los-tokens.html">1 · Del texto a los tokens</a>
+  <a href="u2-la-teoria-el-motor.html">2 · La teoría (el motor)</a>
+  <a href="u3-la-idea-del-generador.html">3 · La idea del generador</a>
+  <a href="u4-flex-en-accion.html">4 · Flex en acción</a>
+  <a href="u5-flex-por-dentro.html">5 · Flex por dentro</a>
+  <a class="activo" href="u6-ecosistema-y-comparacion.html">6 · Ecosistema</a>
+</nav>
+
+<main>
+  <div class="hero">
+    <span class="tag">Unidad 6</span>
+    <h1>Ecosistema y comparación</h1>
+    <p>Flex no está solo. Acá lo ubicamos entre sus pares: la familia entera de generadores léxicos, qué los distingue por dentro, cómo Flex se combina con Bison para formar el front-end de un compilador, y la pregunta madura — ¿cuándo conviene un generador y cuándo escribir el lexer a mano?</p>
+  </div>
+
+  <div class="toc">
+    <span class="et">En esta unidad</span>
+    <ul>
+      <li><a href="#familia">1. La familia de generadores</a></li>
+      <li><a href="#arquitectura">2. Comparación arquitectónica</a></li>
+      <li><a href="#bison">3. Flex + Bison: el front-end</a></li>
+      <li><a href="#mano">4. ¿Generador o a mano?</a></li>
+      <li><a href="#cierre">5. Cierre y bibliografía</a></li>
+    </ul>
+  </div>
+
+  <h2 id="familia">1. La familia de generadores</h2>
+  <p>Todas las herramientas de la familia implementan el <strong>mismo</strong> pipeline RE → AFN → AFD (Unidad 2); cambian el lenguaje destino y la ingeniería. Esto cubre el punto "comparación con otras herramientas" de la consigna.</p>
+  <table>
+    <thead><tr><th>Herramienta</th><th>Año</th><th>Genera</th><th>Particularidad</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">Lex</td><td class="mono">1975</td><td class="mono">C</td><td>El original (Bell Labs). Propietario. Valor histórico.</td></tr>
+      <tr><td class="mono">Flex</td><td class="mono">~1987</td><td class="mono">C/C++</td><td>Libre (BSD), rápido, table-driven. <strong>Estándar de facto.</strong></td></tr>
+      <tr><td class="mono">JFlex</td><td class="mono">~1998</td><td class="mono">Java</td><td>"Flex para Java". Se combina con CUP.</td></tr>
+      <tr><td class="mono">PLY</td><td class="mono">~2001</td><td class="mono">Python</td><td>Lex/Yacc en Python; legible, sin compilar.</td></tr>
+      <tr><td class="mono">re2c</td><td class="mono">~1994</td><td class="mono">C/C++</td><td>Genera el AFD como <strong>código directo</strong>, no tablas.</td></tr>
+      <tr><td class="mono">ocamllex / Alex</td><td class="mono">—</td><td class="mono">OCaml / Haskell</td><td>Los generadores léxicos de esos lenguajes.</td></tr>
+      <tr><td class="mono">logos</td><td class="mono">~2019</td><td class="mono">Rust</td><td>Moderno, muy rápido, basado en derivadas.</td></tr>
+      <tr><td class="mono">ANTLR</td><td class="mono">1992</td><td class="mono">multi</td><td>Léxico <strong>+</strong> sintáctico juntos; algoritmo adaptativo ALL(*).</td></tr>
+    </tbody>
+  </table>
+  <div class="box clave">
+    <span class="et">La lectura de fondo</span>
+    <p>Que existan generadores léxicos para C, Java, Python, OCaml, Haskell, Rust… y que todos hagan lo mismo por dentro, prueba que el fundamento es <strong>teórico y universal</strong>, no atado a un lenguaje. <em>"Los fundamentos del diseño de los compiladores siguen siendo los mismos de siempre"</em> (PDF de la cátedra).</p>
+  </div>
+
+  <h2 id="arquitectura">2. Comparación arquitectónica</h2>
+  <p>No todas usan el mismo modelo por dentro. Esto distingue a las herramientas con criterio técnico:</p>
+  <table>
+    <thead><tr><th>Herramienta</th><th>Modelo del analizador</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">Flex / Lex / JFlex</td><td>AFD dirigido por <strong>tablas</strong> (RE→AFN→AFD). El modelo teórico de la cátedra, tal cual.</td></tr>
+      <tr><td class="mono">re2c</td><td>AFD como <strong>código directo</strong> (goto/switch). Mismo AFD, otra ingeniería.</td></tr>
+      <tr><td class="mono">PLY</td><td>AFD construido en <strong>tiempo de ejecución</strong> sobre el motor <code>re</code> de Python.</td></tr>
+      <tr><td class="mono">ANTLR (v4)</td><td>Lexer y parser <strong>adaptativos</strong> (ALL(*)). Más potente, pero se aleja del AFD limpio.</td></tr>
+    </tbody>
+  </table>
+  <div class="box ej">
+    <span class="et">Conclusiones de la tabla</span>
+    <p><strong>Flex, Lex y JFlex</strong> comparten exactamente el modelo de tu cátedra (RE→AFN→AFD): por eso Flex es el que mejor <em>ilustra la teoría</em>. <strong>re2c</strong> muestra que el mismo AFD se materializa como tablas (Flex) o como código (re2c). <strong>ANTLR</strong> juega en otra liga conceptual: más poderoso, pero desenfoca el modelo limpio que el TP quiere mostrar.</p>
+  </div>
+
+  <h2 id="bison">3. Flex + Bison: el front-end completo</h2>
+  <p>Flex casi nunca trabaja solo: produce los <strong>tokens</strong> que un <strong>analizador sintáctico</strong> consume. La dupla libre estándar es <strong>Flex + Bison</strong> (equivalente moderno de Lex + Yacc).</p>
+  <div class="diagrama">
+    <svg viewBox="0 0 640 150" role="img" aria-label="Flex genera tokens que Bison consume">
+      <defs><marker id="flecha" markerWidth="10" markerHeight="10" refX="7.5" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L8,3 L0,6 Z" fill="#6b7480"/></marker></defs>
+      <text x="50" y="78" text-anchor="middle" class="svg-cap">código<tspan x="50" dy="15">fuente</tspan></text>
+      <line class="svg-arco" x1="92" y1="72" x2="138" y2="72"/>
+      <rect x="140" y="48" width="150" height="50" rx="11" fill="rgba(199,155,106,0.10)" stroke="#c79b6a" stroke-width="1.8"/>
+      <text x="215" y="70" text-anchor="middle" font-family="Inter, sans-serif" font-size="14" font-weight="700" fill="#c79b6a">FLEX</text>
+      <text x="215" y="88" text-anchor="middle" class="svg-cap">análisis léxico</text>
+      <line class="svg-arco" x1="291" y1="72" x2="352" y2="72"/>
+      <text x="322" y="62" text-anchor="middle" class="svg-rotulo" font-size="11">tokens</text>
+      <rect x="354" y="48" width="150" height="50" rx="11" fill="#1b212b" stroke="#8ab59a" stroke-width="1.8"/>
+      <text x="429" y="70" text-anchor="middle" font-family="Inter, sans-serif" font-size="14" font-weight="700" fill="#8ab59a">BISON</text>
+      <text x="429" y="88" text-anchor="middle" class="svg-cap">análisis sintáctico</text>
+      <line class="svg-arco" x1="505" y1="72" x2="551" y2="72"/>
+      <text x="595" y="76" text-anchor="middle" class="svg-cap">árbol</text>
+    </svg>
+    <div class="pie center">Bison genera <code>yyparse()</code>, que cada vez que necesita un token <strong>llama a <code>yylex()</code></strong> (la función de Flex). El tipo de token viaja como un entero; el valor, por la variable compartida <code>yylval</code>.</div>
+  </div>
+  <div class="box tool">
+    <span class="et">El contrato</span>
+    <p>Flex = "Análisis Léxico"; Bison = "Análisis Sintáctico". Es exactamente el diagrama de etapas del PDF de la cátedra, hecho con herramientas reales. Los códigos de token los <strong>define Bison</strong> en un header que el <code>.l</code> incluye.</p>
+  </div>
+
+  <h2 id="mano">4. ¿Generador o a mano?</h2>
+  <p>Un giro interesante y maduro: varios compiladores de producción (<strong>GCC</strong>, <strong>Clang</strong>) terminaron escribiendo su analizador léxico <strong>a mano</strong>, no con Flex. ¿Por qué, si la teoría dice que el generado es correcto y rápido?</p>
+  <div class="box ojo">
+    <span class="et">Razones para escribirlo a mano</span>
+    <p><strong>Rendimiento al límite:</strong> un lexer a mano muy afinado puede superar al table-driven. <strong>Mejores errores y recuperación:</strong> control fino sobre qué hacer ante entrada inválida. <strong>Casos sensibles al contexto</strong> que incomodan al modelo regular puro.</p>
+  </div>
+  <div class="box clave">
+    <span class="et">La lección</span>
+    <p>El generador es <strong>excelente para la enorme mayoría de los casos</strong> (prototipos, lenguajes de dominio específico, docencia), pero no es dogma. Saber <em>cuándo</em> conviene y cuándo no es señal de criterio ingenieril: la teoría te dice qué es <em>posible</em>; la ingeniería, qué <em>conviene</em>.</p>
+  </div>
+
+  <h2 id="cierre">5. Cierre y bibliografía</h2>
+  <div class="box clave">
+    <span class="et">El hilo conductor, completo</span>
+    <p>Recorrimos el camino entero: <strong>(U1)</strong> el problema de partir texto en tokens, <strong>(U2)</strong> la teoría de lenguajes regulares que lo resuelve, <strong>(U3)</strong> la idea de generar el scanner y su historia, <strong>(U4)</strong> Flex funcionando de verdad, <strong>(U5)</strong> Flex por dentro, y <strong>(U6)</strong> su lugar en el ecosistema. De un problema cotidiano a una de las teorías más completas de la informática, materializada en una herramienta de 50 años que sigue vigente.</p>
+  </div>
+
+  <h3>Bibliografía</h3>
+  <ul>
+    <li><strong>Manual oficial de Flex</strong> — <span class="refdoc">westes.github.io/flex/manual</span> · repo <span class="refdoc">github.com/westes/flex</span></li>
+    <li><strong>Flex / Lex</strong> — Wikipedia (historia, modelo AFD, licencia, POSIX).</li>
+    <li><strong>Lesk &amp; Schmidt</strong>, <em>Lex — A Lexical Analyzer Generator</em> (Bell Labs, 1975), documento original.</li>
+    <li><strong>Aho, Lam, Sethi, Ullman</strong>, <em>Compilers: Principles, Techniques, and Tools</em> ("Libro del Dragón"), cap. 3.</li>
+    <li><strong>Hopcroft, Motwani, Ullman</strong>, <em>Introduction to Automata Theory, Languages, and Computation</em>.</li>
+    <li><strong>Material de cátedra:</strong> <code>4_Introducción_a_Compiladores.pdf</code> (Teoría de los Lenguajes de Programación).</li>
+  </ul>
+  <div class="box ext">
+    <span class="et">Material de fondo de este proyecto</span>
+    <p>Versiones más extensas en texto: <span class="refdoc">flex.md</span> (intro), <span class="refdoc">flex-profundo.md</span> (internals), y la carpeta <span class="refdoc">teoria-profunda/</span> (la teoría de autómatas a fondo: Chomsky, Myhill–Nerode, Büchi, Schützenberger). Imágenes reutilizables en <span class="refdoc">teoria-profunda/00</span>.</p>
+  </div>
+
+  <div class="pasos">
+    <a href="u5-flex-por-dentro.html"><small>← Anterior</small>U5 · Flex por dentro</a>
+    <a href="index.html"><small>Volver →</small>Índice de la guía</a>
+  </div>
+</main>
+<script src="toc.js" defer></script>
+</body>
+</html>

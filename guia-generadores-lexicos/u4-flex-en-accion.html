@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>U4 · Flex en acción — Generadores Léxicos</title>
+<link rel="stylesheet" href="estilo.css">
+</head>
+<body>
+<nav class="nav">
+  <a class="home" href="index.html">Generadores Léxicos → Flex</a>
+  <a href="u1-del-texto-a-los-tokens.html">1 · Del texto a los tokens</a>
+  <a href="u2-la-teoria-el-motor.html">2 · La teoría (el motor)</a>
+  <a href="u3-la-idea-del-generador.html">3 · La idea del generador</a>
+  <a class="activo" href="u4-flex-en-accion.html">4 · Flex en acción</a>
+  <a href="u5-flex-por-dentro.html">5 · Flex por dentro</a>
+  <a href="u6-ecosistema-y-comparacion.html">6 · Ecosistema</a>
+</nav>
+
+<main>
+  <div class="hero">
+    <span class="tag">Unidad 4</span>
+    <h1>Flex en acción</h1>
+    <p>De la teoría a la práctica. Acá: la anatomía de un archivo <code>.l</code>, un ejemplo real que reconoce un mini-lenguaje aritmético, los tres comandos para ejecutarlo, la salida verdadera, y el "momento wow" — ver cuánto código generó Flex a partir de tus pocas líneas de reglas.</p>
+  </div>
+
+  <div class="toc">
+    <span class="et">En esta unidad</span>
+    <ul>
+      <li><a href="#anatomia">1. Anatomía de un archivo .l</a></li>
+      <li><a href="#ejemplo">2. Un ejemplo real</a></li>
+      <li><a href="#ejecutar">3. Ejecutarlo: 3 comandos</a></li>
+      <li><a href="#wow">4. Lo que Flex generó</a></li>
+      <li><a href="#variables">5. Las variables que da Flex</a></li>
+    </ul>
+  </div>
+
+  <h2 id="anatomia">1. Anatomía de un archivo <code>.l</code></h2>
+  <p>Toda especificación de Flex (y de Lex, y de casi toda la familia) tiene <strong>tres secciones</strong> separadas por <code>%%</code>:</p>
+  <div class="formula sola">   DEFINICIONES        atajos de expresiones regulares (ej.  DIGITO  [0-9])
+%%
+   REGLAS              patrón  →  acción  (qué hacer al reconocerlo)
+%%
+   CÓDIGO DE USUARIO   funciones auxiliares, main, etc.</div>
+  <div class="trad">La sección del medio (las <strong>reglas</strong>) es el corazón. Cada regla es <code>&lt;expresión regular&gt; { acción }</code>: cuando el patrón matchea, se ejecuta la acción (típicamente, devolver o imprimir un token).</div>
+
+  <h2 id="ejemplo">2. Un ejemplo real</h2>
+  <p>Este archivo <code>lexer.l</code> reconoce un mini-lenguaje aritmético: números, identificadores y los operadores <code>+ - * / = ( )</code>.</p>
+  <div class="formula sola">%{
+#include &lt;stdio.h&gt;
+%}
+
+DIGITO   [0-9]
+LETRA    [a-zA-Z_]
+
+%%
+{DIGITO}+                      { printf("NUMERO(%s)\n", yytext); }
+{LETRA}({LETRA}|{DIGITO})*     { printf("IDENTIFICADOR(%s)\n", yytext); }
+"+"                            { printf("MAS\n"); }
+"-"                            { printf("MENOS\n"); }
+"*"                            { printf("POR\n"); }
+"/"                            { printf("DIV\n"); }
+"="                            { printf("ASIGNACION\n"); }
+"("                            { printf("PAR_IZQ\n"); }
+")"                            { printf("PAR_DER\n"); }
+[ \t\n]+                       { /* espacios: se ignoran */ }
+.                              { printf("DESCONOCIDO(%s)\n", yytext); }
+%%
+
+int main(void) { yylex(); return 0; }
+int yywrap(void) { return 1; }</div>
+  <div class="box ej">
+    <span class="et">Cómo leerlo</span>
+    <p>Arriba, las <strong>definiciones</strong> (<code>DIGITO</code>, <code>LETRA</code>) son atajos. En las <strong>reglas</strong>, cada expresión regular tiene su acción: <code>{DIGITO}+</code> imprime un <code>NUMERO</code>, etc. La regla <code>.</code> (cualquier carácter) al final atrapa lo inesperado. En el <strong>código</strong>, <code>main</code> llama a <code>yylex()</code>, la función que Flex genera.</p>
+  </div>
+
+  <h2 id="ejecutar">3. Ejecutarlo: tres comandos</h2>
+  <p>El flujo completo, de la especificación a un programa que corre:</p>
+  <div class="formula sola">flex lexer.l            # genera "lex.yy.c": el analizador en C
+gcc lex.yy.c -o lexer   # compila ese analizador
+echo "a = 4 + 2" | ./lexer</div>
+  <div class="flujo">
+    <span class="etapa">lexer.l<small>tus reglas</small></span>
+    <span class="flecha">→<small>flex</small></span>
+    <span class="etapa foco">lex.yy.c<small>autómata en C</small></span>
+    <span class="flecha">→<small>gcc</small></span>
+    <span class="etapa">lexer<small>ejecutable</small></span>
+    <span class="flecha">→</span>
+    <span class="etapa">tokens<small>la salida</small></span>
+  </div>
+  <p>Con la entrada <code>a = 4 + 2</code> (el mismo ejemplo del PDF de la cátedra), la salida real es:</p>
+  <div class="tokens">
+    <span class="tok"><b>IDENTIFICADOR</b>(<span class="lex">a</span>)</span>
+    <span class="tok"><b>ASIGNACION</b></span>
+    <span class="tok"><b>NUMERO</b>(<span class="lex">4</span>)</span>
+    <span class="tok"><b>MAS</b></span>
+    <span class="tok"><b>NUMERO</b>(<span class="lex">2</span>)</span>
+  </div>
+  <div class="box ej">
+    <span class="et">Otra entrada, más rica</span>
+    <p>Con <code>resultado = (x1 + 23) * 2</code>:</p>
+    <div class="tokens" style="margin-top:8px">
+      <span class="tok"><b>IDENTIFICADOR</b>(<span class="lex">resultado</span>)</span>
+      <span class="tok"><b>ASIGNACION</b></span>
+      <span class="tok"><b>PAR_IZQ</b></span>
+      <span class="tok"><b>IDENTIFICADOR</b>(<span class="lex">x1</span>)</span>
+      <span class="tok"><b>MAS</b></span>
+      <span class="tok"><b>NUMERO</b>(<span class="lex">23</span>)</span>
+      <span class="tok"><b>PAR_DER</b></span>
+      <span class="tok"><b>POR</b></span>
+      <span class="tok"><b>NUMERO</b>(<span class="lex">2</span>)</span>
+    </div>
+    <p style="margin-top:10px">Fijate que <code>x1</code> salió como <strong>un</strong> identificador (no <code>x</code>+<code>1</code>) y <code>23</code> como <strong>un</strong> número: el <strong>match más largo</strong> (Unidad 2) funcionando solo.</p>
+  </div>
+
+  <h2 id="wow">4. Lo que Flex generó (el momento wow)</h2>
+  <p>Acá está la esencia del tema, hecha tangible. Vos escribiste un puñado de reglas; Flex escribió un analizador completo:</p>
+  <table>
+    <thead><tr><th>Archivo</th><th>Qué es</th><th>Líneas</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">lexer.l</td><td>tu especificación (lo que escribís)</td><td class="mono">37</td></tr>
+      <tr><td class="mono">lex.yy.c</td><td>el analizador léxico completo que generó Flex</td><td class="mono">1813</td></tr>
+    </tbody>
+  </table>
+  <div class="box clave">
+    <span class="et">El "wow"</span>
+    <p>De <strong>37 líneas</strong> de expresiones regulares, Flex generó <strong>1813 líneas</strong> de C que implementan un autómata finito. Ese es el significado literal de "generador": el paso del medio (<code>flex</code>) escribió por vos el código que a mano sería largo y tedioso. <em>Qué</em> contiene ese código generado lo desarmamos en la Unidad 5.</p>
+  </div>
+
+  <h2 id="variables">5. Las variables y funciones que da Flex</h2>
+  <p>Flex pone a tu disposición un puñado de identificadores (todos empiezan con <code>yy</code>):</p>
+  <table>
+    <thead><tr><th>Nombre</th><th>Qué es</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">yylex()</td><td>La función del analizador, generada automáticamente. La llamás para que produzca tokens.</td></tr>
+      <tr><td class="mono">yytext</td><td>El <strong>lexema</strong>: el texto exacto que se acaba de reconocer.</td></tr>
+      <tr><td class="mono">yyin / yyout</td><td>De dónde lee / a dónde escribe (por defecto, entrada y salida estándar).</td></tr>
+      <tr><td class="mono">yywrap()</td><td>Qué hacer al llegar al fin de archivo (devolver 1 = "terminé").</td></tr>
+      <tr><td class="mono">yylineno</td><td>El número de línea actual (útil para mensajes de error).</td></tr>
+    </tbody>
+  </table>
+  <div class="box tool">
+    <span class="et">Probalo vos</span>
+    <p>Si tenés Flex instalado (en Linux/WSL: <code>sudo apt install flex</code>), el archivo <code>ejemplos/lexer.l</code> de este proyecto es exactamente el de arriba. Corré los tres comandos y vas a ver los tokens en tu pantalla. Es la mejor demo posible: el tema funcionando.</p>
+  </div>
+
+  <div class="pasos">
+    <a href="u3-la-idea-del-generador.html"><small>← Anterior</small>U3 · La idea del generador</a>
+    <a href="u5-flex-por-dentro.html"><small>Siguiente →</small>U5 · Flex por dentro</a>
+  </div>
+</main>
+<script src="toc.js" defer></script>
+</body>
+</html>

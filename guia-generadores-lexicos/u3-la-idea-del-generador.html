@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>U3 · La idea del generador — Generadores Léxicos</title>
+<link rel="stylesheet" href="estilo.css">
+</head>
+<body>
+<nav class="nav">
+  <a class="home" href="index.html">Generadores Léxicos → Flex</a>
+  <a href="u1-del-texto-a-los-tokens.html">1 · Del texto a los tokens</a>
+  <a href="u2-la-teoria-el-motor.html">2 · La teoría (el motor)</a>
+  <a class="activo" href="u3-la-idea-del-generador.html">3 · La idea del generador</a>
+  <a href="u4-flex-en-accion.html">4 · Flex en acción</a>
+  <a href="u5-flex-por-dentro.html">5 · Flex por dentro</a>
+  <a href="u6-ecosistema-y-comparacion.html">6 · Ecosistema</a>
+</nav>
+
+<main>
+  <div class="hero">
+    <span class="tag">Unidad 3</span>
+    <h1>La idea del generador</h1>
+    <p>El salto conceptual que define el tema: en vez de programar el analizador léxico a mano, le describimos los tokens con expresiones regulares y dejamos que una herramienta escriba el código. Acá: por qué conviene, qué es un "compilador de compiladores", y la historia que va de Lex (1975) a Flex.</p>
+  </div>
+
+  <div class="toc">
+    <span class="et">En esta unidad</span>
+    <ul>
+      <li><a href="#mano">1. El costo de hacerlo a mano</a></li>
+      <li><a href="#idea">2. La idea: describir y generar</a></li>
+      <li><a href="#definicion">3. Qué es un generador léxico</a></li>
+      <li><a href="#lex">4. Historia: Lex (1975)</a></li>
+      <li><a href="#flex">5. De Lex a Flex</a></li>
+    </ul>
+  </div>
+
+  <h2 id="mano">1. El costo de hacerlo a mano</h2>
+  <p>En la Unidad 2 vimos que reconocer tokens es ejecutar un autómata finito. Nada impide <strong>programarlo a mano</strong>: escribir el código que, estado por estado, lee caracteres y decide. Pero hacerlo bien, para un lenguaje real, es un dolor de cabeza.</p>
+  <div class="box ojo">
+    <span class="et">Lo tedioso de programar el scanner</span>
+    <p>Hay que codificar cada estado y cada transición del autómata; implementar el match más largo con su retroceso; manejar la prioridad entre patrones; descartar espacios y comentarios; contar líneas; recuperar errores… Y repetir <strong>todo</strong> para cada lenguaje nuevo. Es código repetitivo, mecánico y fácil de equivocar.</p>
+  </div>
+  <p>La observación clave: ese trabajo es <strong>siempre el mismo procedimiento</strong> (RE → AFN → AFD → código, Unidad 2). Y todo lo que es mecánico y repetible… se puede automatizar.</p>
+
+  <h2 id="idea">2. La idea: describir y generar</h2>
+  <div class="box clave">
+    <span class="et">El salto (años 70)</span>
+    <p><strong>No programes el scanner. Describí los tokens con expresiones regulares, y que una herramienta genere el código del scanner por vos.</strong> Vos declarás <em>qué</em> reconocer; la herramienta resuelve el <em>cómo</em> (construye el autómata y lo traduce a código).</p>
+  </div>
+
+  <div class="diagrama">
+    <svg viewBox="0 0 660 200" role="img" aria-label="Un generador léxico toma una especificación y produce el código del scanner">
+      <defs><marker id="flecha" markerWidth="10" markerHeight="10" refX="7.5" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L8,3 L0,6 Z" fill="#6b7480"/></marker></defs>
+      <rect x="30" y="56" width="180" height="88" rx="11" fill="#1b212b" stroke="#8ab59a" stroke-width="1.7"/>
+      <text x="120" y="82" text-anchor="middle" font-family="Inter, sans-serif" font-size="14" font-weight="700" fill="#8ab59a">Especificación</text>
+      <text x="120" y="104" text-anchor="middle" class="svg-txt-s">[0-9]+ → NUMERO</text>
+      <text x="120" y="122" text-anchor="middle" class="svg-txt-s">[a-z]+ → IDENT</text>
+      <text x="120" y="138" text-anchor="middle" class="svg-cap">unas pocas reglas</text>
+      <line class="svg-arco" x1="214" y1="100" x2="270" y2="100"/>
+      <rect x="272" y="68" width="116" height="64" rx="11" fill="rgba(199,155,106,0.12)" stroke="#c79b6a" stroke-width="1.9"/>
+      <text x="330" y="98" text-anchor="middle" font-family="Inter, sans-serif" font-size="16" font-weight="700" fill="#c79b6a">GENERADOR</text>
+      <text x="330" y="118" text-anchor="middle" class="svg-cap">construye el autómata</text>
+      <line class="svg-arco" x1="390" y1="100" x2="446" y2="100"/>
+      <rect x="448" y="56" width="180" height="88" rx="11" fill="#1b212b" stroke="#7d9cc0" stroke-width="1.7"/>
+      <text x="538" y="86" text-anchor="middle" font-family="Inter, sans-serif" font-size="14" font-weight="700" fill="#7d9cc0">Analizador léxico</text>
+      <text x="538" y="108" text-anchor="middle" class="svg-cap">código fuente de un</text>
+      <text x="538" y="124" text-anchor="middle" class="svg-cap">autómata finito (en C…)</text>
+    </svg>
+    <div class="pie center">Entrada: una especificación de expresiones regulares con sus acciones. Salida: el código de un analizador léxico completo. El humano escribe el <em>qué</em>; la máquina produce el <em>cómo</em>.</div>
+  </div>
+
+  <h2 id="definicion">3. Qué es un generador de analizadores léxicos</h2>
+  <div class="box def">
+    <span class="et">Definición</span>
+    <p>Un <strong>generador de analizadores léxicos</strong> es un programa que toma como entrada una especificación basada en <strong>expresiones regulares</strong> y produce automáticamente un analizador léxico, cuyo núcleo es un <strong>autómata finito</strong>. (Definición alineada con el material de la cátedra.)</p>
+  </div>
+  <div class="box tool">
+    <span class="et">"Compilador de compiladores"</span>
+    <p>Como estas herramientas te ayudan a construir un compilador (generando una de sus etapas), se las asocia con la idea de <strong>compilador de compiladores</strong>: un programa cuya salida es, en parte, otro compilador. El término nació con Yacc ("Yet Another Compiler-Compiler"), el par sintáctico de Lex.</p>
+  </div>
+
+  <h2 id="lex">4. Historia: Lex (1975)</h2>
+  <p>El primer generador léxico ampliamente usado nació en los laboratorios donde se inventó Unix.</p>
+  <div class="box def">
+    <span class="et">Lex</span>
+    <p>Creado en <strong>Bell Laboratories</strong> (Murray Hill, Nueva Jersey) por <strong>Mike Lesk</strong> y <strong>Eric Schmidt</strong>, y documentado por primera vez en <strong>octubre de 1975</strong>. Se volvió herramienta estándar de Unix a partir de la Versión 7 (1979), formando la dupla histórica con <strong>Yacc</strong> (el generador sintáctico de Steve Johnson).</p>
+  </div>
+  <p>Esto coincide exactamente con lo que cuenta el PDF de la cátedra: <em>"El más conocido es Lex, desarrollado por Mike Lesk para Unix"</em>.</p>
+  <div class="box ej">
+    <span class="et">Dato para enganchar al público</span>
+    <p>Aquel <strong>Eric Schmidt</strong> que de estudiante implementó Lex es el mismo <strong>Eric Schmidt que años después fue CEO de Google</strong> (2001–2011). Una de las herramientas fundacionales de los compiladores la escribió un futuro CEO de Google.</p>
+  </div>
+
+  <h2 id="flex">5. De Lex a Flex</h2>
+  <p>Lex era software propietario de AT&amp;T. Hacía falta una alternativa libre — y más rápida.</p>
+  <div class="box def">
+    <span class="et">Flex (≈1987)</span>
+    <p><strong>Fast Lexical analyzer generator.</strong> En 1982 <strong>Vern Paxson</strong> tomó el proyecto "lex" de los <em>Software Tools</em> de manos de Jef Poskanzer, y alrededor de <strong>1987 lo reescribió en C</strong>: así nació Flex, en el Lawrence Berkeley National Laboratory. Genera scanners <strong>más rápidos</strong> que Lex (de ahí el "Fast"), con licencia libre (BSD).</p>
+  </div>
+  <div class="box ej">
+    <span class="et">Otro dato jugoso</span>
+    <p><strong>Vern Paxson</strong> se volvió luego una leyenda de la <strong>ciberseguridad</strong> (creó el detector de intrusiones Bro, hoy Zeek). Y <strong>Van Jacobson</strong>, que inspiró las "tablas rápidas" de Flex, es uno de los padres del control de congestión de <strong>TCP/IP</strong>. Flex tiene ADN de gente que después marcó Internet.</p>
+  </div>
+
+  <table>
+    <thead><tr><th>Año</th><th>Hito</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">1975</td><td>Lex (Lesk &amp; Schmidt, Bell Labs) — par de Yacc.</td></tr>
+      <tr><td class="mono">1979</td><td>Lex entra como estándar en Unix V7.</td></tr>
+      <tr><td class="mono">1982</td><td>Paxson toma el proyecto de Poskanzer.</td></tr>
+      <tr><td class="mono">~1987</td><td>Nace Flex (reescritura libre en C, Berkeley).</td></tr>
+      <tr><td class="mono">2017</td><td>Flex 2.6.4, última versión estable (madurez, no abandono).</td></tr>
+    </tbody>
+  </table>
+
+  <div class="box clave">
+    <span class="et">El cierre del razonamiento</span>
+    <p>Ya tenemos el problema (U1), el motor teórico (U2) y la idea de automatizarlo con su historia (U3). Lo que sigue es <strong>usar Flex de verdad</strong>: escribir una especificación, ejecutarla y ver los tokens salir. Eso es la Unidad 4.</p>
+  </div>
+
+  <div class="pasos">
+    <a href="u2-la-teoria-el-motor.html"><small>← Anterior</small>U2 · La teoría (el motor)</a>
+    <a href="u4-flex-en-accion.html"><small>Siguiente →</small>U4 · Flex en acción</a>
+  </div>
+</main>
+<script src="toc.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>U5 · Flex por dentro — Generadores Léxicos</title>
+<link rel="stylesheet" href="estilo.css">
+</head>
+<body>
+<nav class="nav">
+  <a class="home" href="index.html">Generadores Léxicos → Flex</a>
+  <a href="u1-del-texto-a-los-tokens.html">1 · Del texto a los tokens</a>
+  <a href="u2-la-teoria-el-motor.html">2 · La teoría (el motor)</a>
+  <a href="u3-la-idea-del-generador.html">3 · La idea del generador</a>
+  <a href="u4-flex-en-accion.html">4 · Flex en acción</a>
+  <a class="activo" href="u5-flex-por-dentro.html">5 · Flex por dentro</a>
+  <a href="u6-ecosistema-y-comparacion.html">6 · Ecosistema</a>
+</nav>
+
+<main>
+  <div class="hero">
+    <span class="tag">Unidad 5</span>
+    <h1>Flex por dentro</h1>
+    <p>Abrimos el <code>lex.yy.c</code> que Flex generó y desciframos el autómata real. Acá: cómo se guarda el AFD como tablas, las clases de equivalencia (una optimización visible sobre nuestro ejemplo), el motor de reconocimiento con su retroceso, y características potentes como las condiciones de arranque.</p>
+  </div>
+
+  <div class="toc">
+    <span class="et">En esta unidad</span>
+    <ul>
+      <li><a href="#tablas">1. El AFD como tablas</a></li>
+      <li><a href="#clases">2. Clases de equivalencia</a></li>
+      <li><a href="#motor">3. El motor de reconocimiento</a></li>
+      <li><a href="#potentes">4. Características potentes</a></li>
+      <li><a href="#compresion">5. Compresión y rendimiento</a></li>
+    </ul>
+  </div>
+
+  <h2 id="tablas">1. El AFD como tablas</h2>
+  <p>El analizador que genera Flex no usa <code>if/else</code> por cada caso: guarda el autómata finito como <strong>tablas numéricas de transición</strong>, que un motor genérico recorre. Por eso es rápido y compacto. Las tablas del AFD de nuestro <code>lexer.l</code> son:</p>
+  <table>
+    <thead><tr><th>Tabla</th><th>Qué guarda</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">yy_nxt</td><td>El <strong>próximo estado</strong> para una transición (la función δ).</td></tr>
+      <tr><td class="mono">yy_accept</td><td>Para cada estado, <strong>qué regla se reconoce</strong> (0 = estado no final).</td></tr>
+      <tr><td class="mono">yy_ec</td><td>Las <strong>clases de equivalencia</strong> de caracteres (ver §2).</td></tr>
+      <tr><td class="mono">yy_base, yy_def, yy_chk</td><td>Empaquetado disperso de las transiciones (con valores por defecto, para ahorrar memoria).</td></tr>
+    </tbody>
+  </table>
+  <div class="box clave">
+    <span class="et">La idea</span>
+    <p>Un único autómata reconoce <strong>todos</strong> los tokens a la vez. Cada estado final "recuerda", vía <code>yy_accept</code>, qué regla disparó (NUMERO, IDENT, MAS…). Flex fusionó los autómatas de todas tus reglas en uno solo.</p>
+  </div>
+
+  <h2 id="clases">2. Clases de equivalencia: la optimización visible</h2>
+  <p>En teoría, el AFD necesitaría una columna por cada uno de los 256 caracteres posibles. Pero muchos se comportan <strong>idéntico</strong>: para nuestro lexer, todos los dígitos hacen lo mismo, todas las letras hacen lo mismo. Flex los agrupa en <strong>clases de equivalencia</strong>.</p>
+  <div class="box ej">
+    <span class="et">Decodificado de nuestro lex.yy.c</span>
+    <p>Los 256 caracteres se reducen a <strong>solo 12 clases</strong>:</p>
+  </div>
+  <table>
+    <thead><tr><th>Clase</th><th>Caracteres que la integran</th><th>Por qué juntos</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">10</td><td class="mono">dígitos 0–9</td><td>todos arrancan/continúan un NUMERO igual</td></tr>
+      <tr><td class="mono">12</td><td class="mono">letras A–Z, a–z, _</td><td>todas arrancan/continúan un IDENT igual</td></tr>
+      <tr><td class="mono">2</td><td class="mono">espacio y tab</td><td>ambos son espacio en blanco</td></tr>
+      <tr><td class="mono">4–9, 11</td><td class="mono">( ) * - / + =</td><td>cada operador, su propia clase</td></tr>
+      <tr><td class="mono">3</td><td class="mono">salto de línea</td><td>separado (el <code>.</code> no lo matchea)</td></tr>
+      <tr><td class="mono">1</td><td class="mono">cualquier otro carácter</td><td>todos caen en la regla <code>.</code> (DESCONOCIDO)</td></tr>
+    </tbody>
+  </table>
+  <div class="box tool">
+    <span class="et">Lo lindo de mostrar esto</span>
+    <p>Flex <strong>se dio cuenta solo</strong> de que "todos los dígitos son intercambiables" y comprimió la tabla de <strong>256 columnas a 12</strong>, automáticamente, sobre tu ejemplo. Es una optimización real y visible: la prueba tangible de la inteligencia de la herramienta. (Es la misma idea de "fusionar lo indistinguible" del teorema de Myhill–Nerode. <span class="badge badge-ext">Extensión</span>)</p>
+  </div>
+
+  <h2 id="motor">3. El motor de reconocimiento</h2>
+  <p>El motor que recorre las tablas implementa las dos reglas del lexer (Unidad 2), y acá vemos <em>cómo</em>:</p>
+  <div class="box def">
+    <span class="et">Match más largo con retroceso</span>
+    <p>El scanner <strong>no</strong> se detiene en el primer estado de aceptación: sigue avanzando mientras pueda, <strong>recordando la última posición donde aceptó</strong> y qué regla. Cuando cae en un estado muerto, <strong>retrocede</strong> hasta esa última aceptación y emite ese token.</p>
+  </div>
+  <div class="box dem">
+    <span class="et">Traza: reconocer "a1" como identificador</span>
+    <table class="tabla-trans" style="margin-top:6px">
+      <thead><tr><th>Paso</th><th>Lee</th><th>¿Acepta?</th><th>Recordado</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>a</td><td class="estado-fin">sí (IDENT)</td><td>"IDENT hasta acá: a"</td></tr>
+        <tr><td>2</td><td>1</td><td class="estado-fin">sí (IDENT)</td><td>"IDENT hasta acá: a1"</td></tr>
+        <tr><td>3</td><td>(fin)</td><td>—</td><td>retrocede → emite <strong>IDENT(a1)</strong></td></tr>
+      </tbody>
+    </table>
+    <div class="trad">Por eso <code>a1</code> sale como un token y no como <code>a</code> + <code>1</code>. Si dos reglas aceptan lo mismo con igual longitud, desempata la <strong>primera</strong> del archivo (así <code>if</code> gana a identificador).</div>
+  </div>
+
+  <h2 id="potentes">4. Características potentes</h2>
+  <p>Flex va mucho más allá del ejemplo básico. Dos rasgos que vale la pena conocer:</p>
+
+  <h3>Condiciones de arranque (modos del scanner)</h3>
+  <p>A veces un carácter significa cosas distintas según el contexto (dentro de un comentario, de un string…). Las <strong>condiciones de arranque</strong> son "modos" del scanner: ciertas reglas solo se activan en cierto modo. Se cambia de modo con <code>BEGIN(...)</code>.</p>
+  <div class="formula sola">%x COMENTARIO
+%%
+"/*"                BEGIN(COMENTARIO);   /* entro al modo comentario */
+&lt;COMENTARIO&gt;"*/"    BEGIN(INITIAL);      /* salgo del modo */
+&lt;COMENTARIO&gt;.|\n    ;                    /* dentro: ignoro todo */</div>
+  <div class="trad">Esto descarta elegantemente los comentarios de bloque <code>/* … */</code>, algo que a mano sería engorroso (hay que recordar "estoy dentro de un comentario" entre carácter y carácter). Es uno de los rasgos más potentes de Flex y un gran ejemplo para la presentación.</div>
+
+  <h3>Directivas <code>%option</code> y acciones especiales</h3>
+  <table>
+    <thead><tr><th>Recurso</th><th>Para qué</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">%option yylineno</td><td>Cuenta líneas automáticamente (mensajes de error con número de línea).</td></tr>
+      <tr><td class="mono">%option case-insensitive</td><td>Patrones sin distinguir mayúsculas/minúsculas.</td></tr>
+      <tr><td class="mono">REJECT</td><td>Rechaza el match actual y prueba la segunda mejor regla.</td></tr>
+      <tr><td class="mono">yymore() / yyless(n)</td><td>Anexar el próximo lexema / devolver caracteres a la entrada.</td></tr>
+      <tr><td class="mono">yy_scan_string("…")</td><td>Analizar una cadena en memoria (no solo un archivo).</td></tr>
+    </tbody>
+  </table>
+
+  <h2 id="compresion">5. Compresión y rendimiento</h2>
+  <p>El "Fast" de Flex es configurable: hay un compromiso <strong>tamaño ↔ velocidad</strong> en cómo guarda las tablas.</p>
+  <table>
+    <thead><tr><th>Opción</th><th>Qué hace</th><th>Compromiso</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">(por defecto)</td><td>Clases de equivalencia + meta-clases</td><td>Tablas chicas (lo que vimos en §2)</td></tr>
+      <tr><td class="mono">-Cf</td><td>Tablas completas, sin comprimir</td><td>Más rápido; tablas grandes</td></tr>
+      <tr><td class="mono">-CF</td><td>Variante rápida de tablas completas</td><td>El scanner más veloz de Flex</td></tr>
+    </tbody>
+  </table>
+  <div class="box ext">
+    <span class="et">Table-driven vs. código directo</span>
+    <p>Flex es <strong>dirigido por tablas</strong>: un motor genérico recorre tablas numéricas. Otra estrategia es generar <strong>código directo</strong> (un autómata hecho de <code>goto</code>/<code>switch</code>): así trabaja <strong>re2c</strong>, que produce scanners aún más rápidos a costa de código más voluminoso. Lo comparamos en la Unidad 6.</p>
+  </div>
+
+  <div class="box clave">
+    <span class="et">Lo que viste en esta unidad</span>
+    <p>El código generado por Flex no es magia: es un <strong>AFD guardado como tablas</strong>, con clases de equivalencia para comprimir y un motor de match-más-largo para trocear. Todo lo de la Unidad 2 (teoría) materializado en C. Falta ubicar a Flex entre sus pares: eso es la Unidad 6.</p>
+  </div>
+
+  <div class="pasos">
+    <a href="u4-flex-en-accion.html"><small>← Anterior</small>U4 · Flex en acción</a>
+    <a href="u6-ecosistema-y-comparacion.html"><small>Siguiente →</small>U6 · Ecosistema y comparación</a>
+  </div>
+</main>
+<script src="toc.js" defer></script>
+</body>
+</html>
