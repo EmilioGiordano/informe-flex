@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Generadores de Analizadores Léxicos → Flex</title>
+<link rel="stylesheet" href="estilo.css">
+</head>
+<body>
+<nav class="nav">
+  <a class="home" href="index.html">Generadores Léxicos → Flex</a>
+  <a href="u1-del-texto-a-los-tokens.html">1 · Del texto a los tokens</a>
+  <a href="u2-la-teoria-el-motor.html">2 · La teoría (el motor)</a>
+  <a href="u3-la-idea-del-generador.html">3 · La idea del generador</a>
+  <a href="u4-flex-en-accion.html">4 · Flex en acción</a>
+  <a href="u5-flex-por-dentro.html">5 · Flex por dentro</a>
+  <a href="u6-ecosistema-y-comparacion.html">6 · Ecosistema</a>
+</nav>
+
+<main>
+  <div class="hero">
+    <span class="tag">Trabajo de Investigación N°2 · Teoría de los Lenguajes de Programación</span>
+    <h1>Generadores de Analizadores Léxicos → Flex</h1>
+    <p>Una herramienta toma unas pocas líneas de expresiones regulares y escribe sola el programa que parte el código fuente en tokens. Esta guía recorre el camino completo: del problema (texto → tokens) a la teoría que lo resuelve, de ahí a la idea de "generar" el analizador, y desemboca en <strong>Flex</strong> con ejemplos reales ejecutados.</p>
+  </div>
+
+  <div class="box clave">
+    <span class="et">El hilo conductor</span>
+    <p>Todo el tema es una sola idea desplegada en cuatro pasos: <strong>(1)</strong> un compilador necesita partir el texto en <strong>tokens</strong>; <strong>(2)</strong> cada token se describe con una <strong>expresión regular</strong> y se reconoce con un <strong>autómata finito</strong> (teoría de lenguajes regulares); <strong>(3)</strong> programar ese autómata a mano es tedioso, así que dejamos que una herramienta lo <strong>genere</strong> a partir de las expresiones regulares; <strong>(4)</strong> esa herramienta es <strong>Flex</strong> (y su familia). La guía sigue ese orden.</p>
+  </div>
+
+  <div class="diagrama">
+    <svg viewBox="0 0 720 150" role="img" aria-label="El analizador léxico es la primera etapa del compilador">
+      <defs><marker id="flecha" markerWidth="10" markerHeight="10" refX="7.5" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L8,3 L0,6 Z" fill="#6b7480"/></marker></defs>
+      <text x="60" y="78" text-anchor="middle" class="svg-cap">código<tspan x="60" dy="16">fuente</tspan></text>
+      <line class="svg-arco" x1="104" y1="70" x2="150" y2="70"/>
+      <rect x="152" y="44" width="150" height="52" rx="11" fill="rgba(199,155,106,0.10)" stroke="#c79b6a" stroke-width="1.8"/>
+      <text x="227" y="68" text-anchor="middle" font-family="Inter, sans-serif" font-size="14" font-weight="700" fill="#c79b6a">Análisis Léxico</text>
+      <text x="227" y="86" text-anchor="middle" class="svg-cap">el scanner</text>
+      <line class="svg-arco" x1="304" y1="70" x2="360" y2="70"/>
+      <text x="332" y="60" text-anchor="middle" class="svg-rotulo" font-size="12">tokens</text>
+      <rect x="362" y="44" width="150" height="52" rx="11" fill="#1b212b" stroke="#2a3340"/>
+      <text x="437" y="68" text-anchor="middle" font-family="Inter, sans-serif" font-size="14" font-weight="700" fill="#8ab59a">Análisis Sintáctico</text>
+      <text x="437" y="86" text-anchor="middle" class="svg-cap">el parser</text>
+      <line class="svg-arco" x1="514" y1="70" x2="560" y2="70"/>
+      <text x="600" y="66" text-anchor="middle" class="svg-cap">…semántico,</text>
+      <text x="600" y="82" text-anchor="middle" class="svg-cap">código…</text>
+    </svg>
+    <div class="pie center">El analizador léxico es la <strong>primera etapa</strong> del compilador: convierte el flujo de caracteres en una secuencia de tokens que las etapas siguientes consumen. Este es el problema que los generadores automatizan.</div>
+  </div>
+
+  <h2>Las seis unidades</h2>
+  <div class="grid">
+    <a class="tarjeta" href="u1-del-texto-a-los-tokens.html">
+      <span class="num">UNIDAD 1</span>
+      <h3>Del texto a los tokens</h3>
+      <p>Qué es el análisis léxico, qué es un token / lexema / patrón, dónde encaja en el compilador y por qué "partir texto" es un problema con sutilezas.</p>
+    </a>
+    <a class="tarjeta" href="u2-la-teoria-el-motor.html">
+      <span class="num">UNIDAD 2</span>
+      <h3>La teoría (el motor)</h3>
+      <p>Expresiones regulares, autómatas finitos, el teorema de Kleene y la cadena RE → AFN → AFD. La maquinaria que un generador automatiza.</p>
+    </a>
+    <a class="tarjeta" href="u3-la-idea-del-generador.html">
+      <span class="num">UNIDAD 3</span>
+      <h3>La idea del generador</h3>
+      <p>Por qué generar en vez de programar a mano. El concepto de "compilador de compiladores". Lex (1975) y la historia que llega a Flex.</p>
+    </a>
+    <a class="tarjeta" href="u4-flex-en-accion.html">
+      <span class="num">UNIDAD 4</span>
+      <h3>Flex en acción</h3>
+      <p>Anatomía de un archivo <code>.l</code>, un ejemplo real ejecutado paso a paso, y el autómata que Flex genera a partir de tus reglas.</p>
+    </a>
+    <a class="tarjeta" href="u5-flex-por-dentro.html">
+      <span class="num">UNIDAD 5</span>
+      <h3>Flex por dentro</h3>
+      <p>Las tablas del autómata decodificadas, las clases de equivalencia, el match más largo, y características potentes como las condiciones de arranque.</p>
+    </a>
+    <a class="tarjeta" href="u6-ecosistema-y-comparacion.html">
+      <span class="num">UNIDAD 6</span>
+      <h3>Ecosistema y comparación</h3>
+      <p>Lex, JFlex, PLY, re2c, ANTLR: la familia entera. Flex + Bison. Cuándo conviene un generador y cuándo escribir el lexer a mano.</p>
+    </a>
+  </div>
+
+  <h2>La línea de tiempo del tema</h2>
+  <p>De la teoría fundacional a la herramienta que vas a presentar:</p>
+  <table>
+    <thead><tr><th>Año</th><th>Hito</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">1951</td><td><strong>Kleene</strong>: expresiones regulares ≡ autómatas finitos (la base teórica).</td></tr>
+      <tr><td class="mono">1956</td><td><strong>Chomsky</strong>: la jerarquía de gramáticas; lo regular es el tipo 3.</td></tr>
+      <tr><td class="mono">1959</td><td><strong>Rabin &amp; Scott</strong>: AFN ≡ AFD (construcción de subconjuntos). Premio Turing.</td></tr>
+      <tr><td class="mono">1968</td><td><strong>Ken Thompson</strong>: algoritmo RE → AFN (la "construcción de Thompson").</td></tr>
+      <tr><td class="mono">1975</td><td><strong>Lesk &amp; Schmidt</strong>: <strong>Lex</strong>, el primer generador léxico, en Bell Labs / Unix.</td></tr>
+      <tr><td class="mono">~1987</td><td><strong>Vern Paxson</strong>: <strong>Flex</strong>, la reescritura libre y rápida en C.</td></tr>
+      <tr><td class="mono">hoy</td><td>Flex sigue siendo el estándar de facto; el modelo teórico no cambió.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="box tool">
+    <span class="et">Cómo está hecha esta guía</span>
+    <p>Mismo formato visual que tu guía profunda de ALF. A lo largo del texto vas a ver dos marcas: <span class="badge badge-tool">Sobre la herramienta</span> señala detalles propios de Flex, y <span class="badge badge-ext">Extensión</span> marca teoría que va más allá de lo estrictamente pedido por la consigna, pero que enriquece. El material de fondo completo (más extenso) está en los documentos <span class="refdoc">flex.md</span>, <span class="refdoc">flex-profundo.md</span> y la carpeta <span class="refdoc">teoria-profunda/</span>.</p>
+  </div>
+
+  <p style="color:var(--text-dim); font-size:14px; margin-top:46px;">Basado en el material de cátedra de Teoría de los Lenguajes de Programación (<code>4_Introducción_a_Compiladores.pdf</code>), el manual oficial de Flex, y bibliografía estándar (Aho et al., "Compilers"; Hopcroft-Ullman). Imágenes reutilizables citadas en cada unidad.</p>
+</main>
+<script src="toc.js" defer></script>
+</body>
+</html>

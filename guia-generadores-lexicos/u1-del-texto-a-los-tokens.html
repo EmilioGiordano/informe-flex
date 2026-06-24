@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>U1 · Del texto a los tokens — Generadores Léxicos</title>
+<link rel="stylesheet" href="estilo.css">
+</head>
+<body>
+<nav class="nav">
+  <a class="home" href="index.html">Generadores Léxicos → Flex</a>
+  <a class="activo" href="u1-del-texto-a-los-tokens.html">1 · Del texto a los tokens</a>
+  <a href="u2-la-teoria-el-motor.html">2 · La teoría (el motor)</a>
+  <a href="u3-la-idea-del-generador.html">3 · La idea del generador</a>
+  <a href="u4-flex-en-accion.html">4 · Flex en acción</a>
+  <a href="u5-flex-por-dentro.html">5 · Flex por dentro</a>
+  <a href="u6-ecosistema-y-comparacion.html">6 · Ecosistema</a>
+</nav>
+
+<main>
+  <div class="hero">
+    <span class="tag">Unidad 1</span>
+    <h1>Del texto a los tokens</h1>
+    <p>El problema que da origen a todo el tema. Antes de que una computadora pueda "entender" un programa, tiene que partir el texto en piezas con significado. Acá: qué hace un analizador léxico, el vocabulario preciso (token, lexema, patrón), dónde encaja en el compilador, y por qué partir texto esconde sutilezas reales.</p>
+  </div>
+
+  <div class="toc">
+    <span class="et">En esta unidad</span>
+    <ul>
+      <li><a href="#que-hace">1. Qué hace un analizador léxico</a></li>
+      <li><a href="#vocabulario">2. Token, lexema y patrón</a></li>
+      <li><a href="#compilador">3. Dónde encaja en el compilador</a></li>
+      <li><a href="#sutil">4. Por qué no es trivial</a></li>
+      <li><a href="#plan">5. El plan: describir en vez de programar</a></li>
+    </ul>
+  </div>
+
+  <h2 id="que-hace">1. Qué hace un analizador léxico</h2>
+  <p>Un programa es, para la computadora, apenas una larga tira de caracteres. La primera tarea de un compilador es agrupar esos caracteres en <strong>"palabras" con significado</strong>, descartando espacios y comentarios. A ese programa se lo llama <strong>analizador léxico</strong> (o <em>scanner</em>, o <em>rastreador</em>).</p>
+
+  <div class="box def">
+    <span class="et">Definición</span>
+    <p>El <strong>análisis léxico</strong> es la etapa que lee el código fuente carácter a carácter y produce una secuencia de <strong>tokens</strong>: las unidades mínimas con significado del lenguaje (identificadores, números, palabras clave, operadores, delimitadores…).</p>
+  </div>
+
+  <p>Tomemos la línea de ejemplo de las diapositivas de la cátedra:</p>
+  <div class="formula sola">a [ index ] = 4 + 2</div>
+  <p>El analizador léxico la convierte en esta secuencia de tokens:</p>
+  <div class="tokens">
+    <span class="tok"><b>IDENT</b>(<span class="lex">a</span>)</span>
+    <span class="tok"><b>CORCHETE_IZQ</b></span>
+    <span class="tok"><b>IDENT</b>(<span class="lex">index</span>)</span>
+    <span class="tok"><b>CORCHETE_DER</b></span>
+    <span class="tok"><b>ASIGNACION</b></span>
+    <span class="tok"><b>NUMERO</b>(<span class="lex">4</span>)</span>
+    <span class="tok"><b>SUMA</b></span>
+    <span class="tok"><b>NUMERO</b>(<span class="lex">2</span>)</span>
+  </div>
+  <div class="box clave">
+    <span class="et">La idea central</span>
+    <p>El scanner transforma un <strong>flujo de caracteres</strong> sin estructura en una <strong>lista de tokens</strong> tipados. Esa lista es la materia prima de la siguiente etapa (el analizador sintáctico). Todo el resto de la guía es sobre cómo construir este componente <em>automáticamente</em>.</p>
+  </div>
+
+  <h2 id="vocabulario">2. Token, lexema y patrón</h2>
+  <p>Tres palabras que se confunden y conviene separar con precisión. Es vocabulario que vas a usar en toda la presentación.</p>
+
+  <div class="box def">
+    <span class="et">Token</span>
+    <p>La <strong>categoría</strong> (el "tipo") de la pieza léxica: <code>NUMERO</code>, <code>IDENT</code>, <code>SUMA</code>… Es lo que le interesa a la etapa siguiente. Internamente suele representarse como un valor de un tipo enumerado.</p>
+  </div>
+  <div class="box def">
+    <span class="et">Lexema</span>
+    <p>El <strong>texto concreto</strong> que formó el token. Para el token <code>NUMERO</code>, el lexema podría ser <code>4</code>, <code>23</code> o <code>1000</code>. En Flex, el lexema vive en la variable <code>yytext</code>.</p>
+  </div>
+  <div class="box def">
+    <span class="et">Patrón</span>
+    <p>La <strong>regla</strong> que describe qué lexemas pertenecen a un token. Se escribe como una <strong>expresión regular</strong>. El patrón de <code>NUMERO</code> es <code>[0-9]+</code> (uno o más dígitos).</p>
+  </div>
+
+  <table>
+    <thead><tr><th>Token (categoría)</th><th>Patrón (expresión regular)</th><th>Lexemas posibles</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">NUMERO</td><td class="mono">[0-9]+</td><td class="mono">4 · 23 · 1000</td></tr>
+      <tr><td class="mono">IDENT</td><td class="mono">[a-zA-Z_][a-zA-Z0-9_]*</td><td class="mono">a · index · total_2</td></tr>
+      <tr><td class="mono">SUMA</td><td class="mono">"+"</td><td class="mono">+</td></tr>
+      <tr><td class="mono">SI (palabra clave)</td><td class="mono">"if"</td><td class="mono">if</td></tr>
+    </tbody>
+  </table>
+  <div class="trad">Un <strong>patrón</strong> describe un conjunto (posiblemente infinito) de <strong>lexemas</strong>; cuando el scanner reconoce uno, emite el <strong>token</strong> correspondiente. La relación es: patrón ⟶ describe ⟶ lexemas ⟶ se clasifican como ⟶ token.</div>
+
+  <h2 id="compilador">3. Dónde encaja en el compilador</h2>
+  <p>El análisis léxico no trabaja solo: es el <strong>primer eslabón</strong> de una cadena de etapas. Cada una recibe la salida de la anterior.</p>
+
+  <div class="diagrama">
+    <svg viewBox="0 0 680 230" role="img" aria-label="Las etapas del compilador, con el análisis léxico como primera">
+      <defs><marker id="flecha" markerWidth="10" markerHeight="10" refX="7.5" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L8,3 L0,6 Z" fill="#6b7480"/></marker></defs>
+      <text x="340" y="24" text-anchor="middle" class="svg-cap">código fuente (tira de caracteres)</text>
+      <line class="svg-arco" x1="340" y1="30" x2="340" y2="52"/>
+      <rect x="225" y="54" width="230" height="42" rx="10" fill="rgba(199,155,106,0.10)" stroke="#c79b6a" stroke-width="1.8"/>
+      <text x="340" y="80" text-anchor="middle" font-family="Inter, sans-serif" font-size="14" font-weight="700" fill="#c79b6a">Análisis Léxico (scanner)</text>
+      <line class="svg-arco" x1="340" y1="96" x2="340" y2="118"/>
+      <text x="390" y="112" text-anchor="start" class="svg-rotulo" font-size="12">tokens</text>
+      <rect x="225" y="120" width="230" height="40" rx="10" fill="#1b212b" stroke="#2a3340"/>
+      <text x="340" y="145" text-anchor="middle" font-family="Inter, sans-serif" font-size="14" fill="#8ab59a">Análisis Sintáctico</text>
+      <line class="svg-arco" x1="340" y1="160" x2="340" y2="182"/>
+      <text x="395" y="176" text-anchor="start" class="svg-cap">árbol sintáctico</text>
+      <rect x="225" y="184" width="230" height="38" rx="10" fill="#1b212b" stroke="#2a3340"/>
+      <text x="340" y="208" text-anchor="middle" font-family="Inter, sans-serif" font-size="13" fill="#8a93a1">Semántico → código → …</text>
+      <rect x="500" y="100" width="150" height="44" rx="10" fill="var(--bg-soft)" stroke="#2a3340"/>
+      <text x="575" y="120" text-anchor="middle" class="svg-cap">tabla de símbolos</text>
+      <text x="575" y="136" text-anchor="middle" class="svg-cap">+ manejo de errores</text>
+      <line x1="455" y1="139" x2="500" y2="125" stroke="#3a4350" stroke-width="1.2" stroke-dasharray="4 3"/>
+    </svg>
+    <div class="pie center">El scanner es la <strong>primera</strong> etapa. Produce los tokens que alimentan al analizador sintáctico. Todas las etapas dialogan con la tabla de símbolos y el manejo de errores. <span class="refdoc">(Diagrama del PDF de la cátedra, redibujado.)</span></div>
+  </div>
+
+  <div class="box tool">
+    <span class="et">Por qué importa la velocidad</span>
+    <p>El analizador léxico es la etapa que <strong>más se ejecuta</strong>: toca cada carácter del archivo fuente. Por eso su eficiencia es crítica, y por eso conviene que esté basado en un autómata finito (rápido, sin retroceso). Lo veremos en la Unidad 2.</p>
+  </div>
+
+  <h2 id="sutil">4. Por qué no es trivial</h2>
+  <p>"Partir por espacios" no alcanza. El análisis léxico tiene decisiones finas que un generador debe resolver bien:</p>
+
+  <div class="box ej">
+    <span class="et">Problema 1 · ¿Dónde termina un token?</span>
+    <p>En <code>index</code>, ¿el scanner debería parar en <code>i</code> (un identificador de una letra) y seguir con <code>ndex</code>? No: debe tomar <strong>el lexema más largo posible</strong>. A esta regla se la llama <em>match más largo</em> (<em>maximal munch</em>).</p>
+  </div>
+  <div class="box ej">
+    <span class="et">Problema 2 · ¿<code>if</code> es palabra clave o identificador?</span>
+    <p>El texto <code>if</code> encaja con el patrón de palabra clave <em>y</em> con el de identificador (<code>[a-z]+</code>). Hace falta una regla de <strong>prioridad</strong> para desempatar (gana la palabra clave).</p>
+  </div>
+  <div class="box ojo">
+    <span class="et">Y además</span>
+    <p>Descartar espacios y comentarios, contar líneas para los mensajes de error, reconocer números con punto decimal, manejar caracteres inesperados… Hacer todo esto <strong>a mano</strong>, para cada lenguaje, es repetitivo y propenso a errores. Ahí aparece la idea del generador (Unidad 3).</p>
+  </div>
+
+  <h2 id="plan">5. El plan: describir en vez de programar</h2>
+  <p>La estrategia que organiza todo el tema es un cambio de actitud:</p>
+
+  <div class="box clave">
+    <span class="et">El cambio de mentalidad</span>
+    <p>En lugar de <strong>programar</strong> el analizador (escribir el código que reconoce cada token, estado por estado), vamos a <strong>describir</strong> los tokens con expresiones regulares y dejar que una herramienta genere el código por nosotros. Decimos <em>qué</em> queremos reconocer; la herramienta resuelve el <em>cómo</em>.</p>
+  </div>
+
+  <p>Para que ese plan funcione hace falta una garantía teórica: que <strong>toda</strong> expresión regular se pueda convertir, mecánicamente, en una máquina que la reconozca. Esa garantía existe, y es el corazón de la Unidad 2.</p>
+
+  <div class="flujo">
+    <span class="etapa foco">expresiones<br>regulares<small>las escribís vos</small></span>
+    <span class="flecha">→<small>¿cómo?</small></span>
+    <span class="etapa">autómata<br>finito<small>la máquina</small></span>
+    <span class="flecha">→</span>
+    <span class="etapa">tokens<small>la salida</small></span>
+  </div>
+  <p>La flecha del medio —"¿cómo se convierte una expresión regular en una máquina?"— es exactamente lo que veremos a continuación, y lo que un generador como Flex automatiza.</p>
+
+  <div class="pasos">
+    <a href="index.html"><small>← Inicio</small>Índice de la guía</a>
+    <a href="u2-la-teoria-el-motor.html"><small>Siguiente →</small>U2 · La teoría (el motor)</a>
+  </div>
+</main>
+<script src="toc.js" defer></script>
+</body>
+</html>

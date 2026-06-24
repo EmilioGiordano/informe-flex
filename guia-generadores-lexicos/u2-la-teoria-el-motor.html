@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>U2 · La teoría (el motor) — Generadores Léxicos</title>
+<link rel="stylesheet" href="estilo.css">
+</head>
+<body>
+<nav class="nav">
+  <a class="home" href="index.html">Generadores Léxicos → Flex</a>
+  <a href="u1-del-texto-a-los-tokens.html">1 · Del texto a los tokens</a>
+  <a class="activo" href="u2-la-teoria-el-motor.html">2 · La teoría (el motor)</a>
+  <a href="u3-la-idea-del-generador.html">3 · La idea del generador</a>
+  <a href="u4-flex-en-accion.html">4 · Flex en acción</a>
+  <a href="u5-flex-por-dentro.html">5 · Flex por dentro</a>
+  <a href="u6-ecosistema-y-comparacion.html">6 · Ecosistema</a>
+</nav>
+
+<main>
+  <div class="hero">
+    <span class="tag">Unidad 2</span>
+    <h1>La teoría que hace de motor</h1>
+    <p>Lo que un generador léxico automatiza es pura teoría de lenguajes regulares. Acá está la maquinaria: expresiones regulares para describir tokens, autómatas finitos para reconocerlos, el teorema de Kleene que garantiza que son intercambiables, y la cadena RE → AFN → AFD que convierte tus reglas en una máquina veloz.</p>
+  </div>
+
+  <div class="toc">
+    <span class="et">En esta unidad</span>
+    <ul>
+      <li><a href="#er">1. Expresiones regulares</a></li>
+      <li><a href="#af">2. Autómatas finitos</a></li>
+      <li><a href="#kleene">3. El teorema de Kleene</a></li>
+      <li><a href="#cadena">4. La cadena RE → AFN → AFD</a></li>
+      <li><a href="#reglas">5. Las reglas propias del lexer</a></li>
+    </ul>
+  </div>
+
+  <h2 id="er">1. Expresiones regulares: describir los tokens</h2>
+  <p>Una <strong>expresión regular</strong> (ER) es una notación para describir un conjunto de cadenas: un <em>patrón</em>. Es la forma en que vos le decís a la herramienta qué forma tiene cada token.</p>
+
+  <div class="box def">
+    <span class="et">Definición — operadores básicos</span>
+    <p>Una ER se construye con tres operaciones sobre los símbolos del alfabeto:</p>
+  </div>
+  <table>
+    <thead><tr><th>Operador</th><th>Notación</th><th>Significado</th></tr></thead>
+    <tbody>
+      <tr><td>Concatenación</td><td class="mono">ab</td><td>una <code>a</code> seguida de una <code>b</code></td></tr>
+      <tr><td>Alternancia</td><td class="mono">a|b</td><td>una <code>a</code> <em>o</em> una <code>b</code></td></tr>
+      <tr><td>Clausura de Kleene</td><td class="mono">a*</td><td><em>cero o más</em> repeticiones de <code>a</code></td></tr>
+      <tr><td>Derivados (azúcar)</td><td class="mono">a+ · a? · [0-9]</td><td>una-o-más · cero-o-una · un dígito cualquiera</td></tr>
+    </tbody>
+  </table>
+  <div class="box ej">
+    <span class="et">Los tokens, como ER</span>
+    <p><strong>Número entero:</strong> <code>[0-9]+</code> &nbsp;—&nbsp; uno o más dígitos.<br>
+    <strong>Identificador:</strong> <code>[a-zA-Z_][a-zA-Z0-9_]*</code> &nbsp;—&nbsp; una letra o <code>_</code>, seguida de letras, dígitos o <code>_</code>.<br>
+    <strong>Número con decimales:</strong> <code>[0-9]+("."[0-9]+)?</code> &nbsp;—&nbsp; dígitos, opcionalmente punto y más dígitos.</p>
+  </div>
+  <p>Una ER es <strong>declarativa</strong>: dice <em>qué</em> forma tienen las cadenas, no <em>cómo</em> reconocerlas. El "cómo" lo aporta el autómata.</p>
+
+  <h2 id="af">2. Autómatas finitos: reconocer los tokens</h2>
+  <p>Un <strong>autómata finito</strong> es una máquina con una cantidad <em>finita</em> de estados y <strong>sin memoria auxiliar</strong>: lo único que "recuerda" es en qué estado está. Lee la cadena símbolo a símbolo y al final acepta o rechaza.</p>
+
+  <div class="box def">
+    <span class="et">Definición — AFD</span>
+    <p>Un <strong>autómata finito determinista (AFD)</strong> es una 5-tupla:</p>
+    <div class="formula sola">M = (E, Σ, δ, e₀, F)</div>
+    <div class="trad"><code>E</code> = estados; <code>Σ</code> = alfabeto; <code>δ</code> = función de transición; <code>e₀</code> = estado inicial; <code>F</code> = estados finales (de aceptación). "Determinista" = desde cada estado, cada símbolo lleva a <strong>exactamente un</strong> estado. Por eso se ejecuta sin dudar y sin retroceder: leer símbolo, seguir la única flecha, repetir.</div>
+  </div>
+
+  <p>Así se ve el autómata del token <strong>identificador</strong> (<code>[a-zA-Z_][a-zA-Z0-9_]*</code>):</p>
+  <div class="diagrama">
+    <svg viewBox="0 0 480 175" role="img" aria-label="AFD que reconoce un identificador">
+      <defs><marker id="flecha" markerWidth="10" markerHeight="10" refX="7.5" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L8,3 L0,6 Z" fill="#6b7480"/></marker></defs>
+      <line class="svg-arco" x1="14" y1="92" x2="86" y2="92"/>
+      <circle class="svg-estado" cx="122" cy="92" r="28"/>
+      <text class="svg-txt" x="122" y="97" text-anchor="middle">S0</text>
+      <circle class="svg-estado" cx="350" cy="92" r="28"/>
+      <circle class="svg-final" cx="350" cy="92" r="33"/>
+      <text class="svg-txt" x="350" y="97" text-anchor="middle">S1</text>
+      <path class="svg-arco" d="M150,84 Q236,46 322,84"/>
+      <text class="svg-rotulo" x="236" y="46" text-anchor="middle">letra, _</text>
+      <path class="svg-arco" d="M336,66 C320,26 380,26 364,66"/>
+      <text class="svg-rotulo" x="350" y="20" text-anchor="middle">letra, dígito, _</text>
+    </svg>
+    <div class="pie center">Desde <code>S0</code>, una letra (o <code>_</code>) lleva al estado final <code>S1</code>. Una vez ahí, cada letra, dígito o <code>_</code> mantiene la aceptación (el bucle). Cualquier otro carácter detiene el token. Reconoce <code>a</code>, <code>index</code>, <code>total_2</code>…</div>
+  </div>
+
+  <div class="box clave">
+    <span class="et">La limitación que define a lo regular</span>
+    <p>Al no tener memoria, un autómata finito <strong>no puede contar sin límite</strong>. Puede chequear "¿par o impar?", pero no "¿hay tantos <code>(</code> como <code>)</code>?". Por eso un lexer no puede balancear paréntesis: eso necesita una pila, y es trabajo del analizador <em>sintáctico</em>. Esta es la razón teórica de la división léxico / sintáctico. <span class="badge badge-ext">Extensión</span></p>
+  </div>
+
+  <h2 id="kleene">3. El teorema de Kleene: son la misma cosa</h2>
+  <div class="box clave">
+    <span class="et">Teorema de Kleene (1951)</span>
+    <p>Un lenguaje se puede describir con una <strong>expresión regular</strong> <em>si y solo si</em> es reconocido por un <strong>autómata finito</strong>. Las dos representaciones tienen exactamente el mismo poder.</p>
+  </div>
+  <p>Este teorema es la <strong>licencia teórica</strong> de todo generador léxico: garantiza que <em>cualquier</em> expresión regular que escribas se puede convertir, mecánicamente, en una máquina que la reconozca — y que esa máquina existe y es finita. Sin Kleene, no habría Flex.</p>
+
+  <div class="diagrama">
+    <svg viewBox="0 0 620 130" role="img" aria-label="Equivalencia entre expresión regular y autómata finito">
+      <rect x="40" y="40" width="200" height="52" rx="11" fill="#1b212b" stroke="#8ab59a" stroke-width="1.8"/>
+      <text x="140" y="64" text-anchor="middle" font-family="Inter, sans-serif" font-size="15" font-weight="700" fill="#8ab59a">Expresión regular</text>
+      <text x="140" y="82" text-anchor="middle" class="svg-cap">la describe</text>
+      <text x="310" y="60" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="30" fill="#c79b6a">≡</text>
+      <text x="310" y="82" text-anchor="middle" class="svg-cap">Kleene</text>
+      <rect x="380" y="40" width="200" height="52" rx="11" fill="#1b212b" stroke="#c79b6a" stroke-width="1.8"/>
+      <text x="480" y="64" text-anchor="middle" font-family="Inter, sans-serif" font-size="15" font-weight="700" fill="#c79b6a">Autómata finito</text>
+      <text x="480" y="82" text-anchor="middle" class="svg-cap">lo reconoce</text>
+    </svg>
+    <div class="pie center">Lo que se puede <em>describir</em> con una ER, se puede <em>reconocer</em> con un autómata, y viceversa. Un generador léxico vive sobre esta equivalencia: traduce de la izquierda (cómodo de escribir) a la derecha (rápido de ejecutar).</div>
+  </div>
+
+  <h2 id="cadena">4. La cadena RE → AFN → AFD</h2>
+  <p>Kleene garantiza que la conversión existe; estos algoritmos la <strong>realizan</strong>. Es exactamente el pipeline que corre un generador por dentro.</p>
+
+  <div class="flujo">
+    <span class="etapa foco">Expresión<br>regular<small>tus reglas</small></span>
+    <span class="flecha">→<small>Thompson</small></span>
+    <span class="etapa">AFN<small>no determinista</small></span>
+    <span class="flecha">→<small>subconjuntos</small></span>
+    <span class="etapa">AFD<small>determinista</small></span>
+    <span class="flecha">→<small>minimización</small></span>
+    <span class="etapa">AFD<br>mínimo<small>el scanner</small></span>
+  </div>
+
+  <div class="box def">
+    <span class="et">Paso 1 · Construcción de Thompson (RE → AFN)</span>
+    <p>Cada operador de la ER tiene un "ladrillo" de autómata (con transiciones <code>ε</code>, que saltan de estado sin consumir entrada). Se ensamblan recursivamente. El AFN resultante es <strong>no determinista</strong> (un símbolo puede llevar a varios estados) pero <strong>facilísimo</strong> de construir, y su tamaño es lineal en el largo de la ER.</p>
+  </div>
+  <div class="box def">
+    <span class="et">Paso 2 · Construcción de subconjuntos (AFN → AFD)</span>
+    <p>Cada estado del AFD es un <em>conjunto</em> de estados del AFN: "en cuáles podría estar el AFN a la vez". Se simula todo el no determinismo por adelantado, obteniendo una máquina <strong>determinista</strong> que se ejecuta en tiempo lineal y sin retroceso. (Rabin &amp; Scott, 1959 — Premio Turing.)</p>
+  </div>
+  <div class="box def">
+    <span class="et">Paso 3 · Minimización (AFD → AFD mínimo)</span>
+    <p>Se fusionan los estados indistinguibles para obtener la máquina más chica posible. Menos estados = tablas más compactas y scanner más rápido. <span class="badge badge-ext">Extensión</span> El resultado es único: es un invariante del lenguaje (teorema de Myhill–Nerode).</p>
+  </div>
+
+  <div class="box tool">
+    <span class="et">Esto es literalmente lo que hace Flex</span>
+    <p>Cuando corras <code>flex lexer.l</code> (Unidad 4), por dentro pasa <strong>exactamente</strong> esta cadena: tus expresiones regulares → Thompson → subconjuntos → minimización → tablas en C. Vas a poder ver el AFD resultante con tus propios ojos (Unidad 5). Imágenes de cada ladrillo de Thompson: <span class="refdoc">teoria-profunda/00 (Wikimedia Commons)</span>.</p>
+  </div>
+
+  <h2 id="reglas">5. Las reglas propias del lexer</h2>
+  <p>La teoría de Kleene reconoce <em>un</em> lenguaje y responde sí/no. Un analizador léxico necesita dos reglas extra, pragmáticas, para <strong>trocear un flujo</strong> de texto en tokens sucesivos.</p>
+
+  <div class="box clave">
+    <span class="et">Regla 1 · Match más largo (maximal munch)</span>
+    <p>El scanner consume <strong>el lexema más largo posible</strong>. No para en el primer estado de aceptación: sigue mientras pueda avanzar, recordando la última posición donde aceptó, y retrocede si se pasa.</p>
+  </div>
+  <div class="box dem">
+    <span class="et">Traza de "index"</span>
+    <ol class="pasos-dem">
+      <li>Lee <code>i</code> → llega a <code>S1</code> (final). Recuerda: "identificador hasta acá: <code>i</code>".</li>
+      <li>Lee <code>n</code>,<code>d</code>,<code>e</code>,<code>x</code> → sigue en <code>S1</code> (final) por el bucle. Recuerda: "…hasta acá: <code>index</code>".</li>
+      <li>Lee un espacio → no hay flecha; se detiene. Retrocede al último aceptado → emite <strong>IDENT(index)</strong>.</li>
+    </ol>
+    <div class="trad">Por eso <code>index</code> es <em>un</em> token y no <code>i</code> + <code>ndex</code>. El autómata "se estira" todo lo que puede antes de cortar.</div>
+  </div>
+  <div class="box clave">
+    <span class="et">Regla 2 · Prioridad por orden</span>
+    <p>Si dos patrones aceptan el mismo lexema con la misma longitud, gana <strong>el que aparece primero</strong> en la especificación. Poniendo la regla de <code>if</code> <em>antes</em> que la de identificadores, <code>if</code> se reconoce como palabra clave; cualquier otra palabra cae en la regla genérica.</p>
+  </div>
+
+  <div class="box tool">
+    <span class="et">El resumen del motor</span>
+    <p>Un generador léxico = <strong>teoría de autómatas</strong> (el motor: Kleene + Thompson + subconjuntos) <strong>+</strong> un par de reglas de troceo (match más largo + prioridad). Con esto ya entendés <em>qué</em> automatiza la herramienta. La Unidad 3 explica <em>por qué</em> conviene generarla en vez de programarla.</p>
+  </div>
+
+  <div class="pasos">
+    <a href="u1-del-texto-a-los-tokens.html"><small>← Anterior</small>U1 · Del texto a los tokens</a>
+    <a href="u3-la-idea-del-generador.html"><small>Siguiente →</small>U3 · La idea del generador</a>
+  </div>
+</main>
+<script src="toc.js" defer></script>
+</body>
+</html>
